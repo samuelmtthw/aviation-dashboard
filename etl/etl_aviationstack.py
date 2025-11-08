@@ -1,6 +1,7 @@
 """
 Simple ETL for AviationStack Flights endpoint.
 - Reads API key from environment variable AVIATIONSTACK_API_KEY
+- Filters for multiple airlines: Garuda Indonesia (GA), ANA (NH), Emirates (EK), Turkish Airlines (TK)
 - Writes `data/flights.parquet` and `data/aviationstack.db` SQLite table `fact_flights`
 
 
@@ -110,20 +111,36 @@ def flatten_flight(f):
     return row
 
 def fetch_and_store(max_pages=5, limit=100, sleep_sec=1):
+    # Airlines to fetch: Garuda Indonesia, ANA, Emirates, Turkish Airlines
+    airlines = [
+        {'iata': 'GA', 'name': 'Garuda Indonesia'},
+        {'iata': 'NH', 'name': 'ANA'},
+        {'iata': 'EK', 'name': 'Emirates'},
+        {'iata': 'TK', 'name': 'Turkish Airlines'}
+    ]
+    
     all_rows = []
-    offset = 0
-    for page in range(max_pages):
-        params = {'limit': limit, 'offset': offset}
-        js = call_api(params)
-        data = js.get('data', [])
-        for f in data:
-            all_rows.append(flatten_flight(f))
-        count = len(data)
-        print(f"Fetched page {page+1}: {count} records (offset={offset})")
-        if count < limit:
-            break
-        offset += limit
-        time.sleep(sleep_sec)
+    
+    for airline in airlines:
+        print(f"\nFetching data for {airline['name']} ({airline['iata']})...")
+        offset = 0
+        airline_rows = []
+        
+        for page in range(max_pages):
+            params = {'limit': limit, 'offset': offset, 'airline_iata': airline['iata']}
+            js = call_api(params)
+            data = js.get('data', [])
+            for f in data:
+                airline_rows.append(flatten_flight(f))
+            count = len(data)
+            print(f"  Page {page+1}: {count} records (offset={offset})")
+            if count < limit:
+                break
+            offset += limit
+            time.sleep(sleep_sec)
+        
+        all_rows.extend(airline_rows)
+        print(f"  Total records for {airline['name']}: {len(airline_rows)}")
 
     df = pd.DataFrame(all_rows)
 
