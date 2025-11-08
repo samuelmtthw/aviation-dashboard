@@ -1,4 +1,4 @@
-# AviationStack BI Dashboard — GitHub-ready Project
+# AviationStack BI Dashboard
 
 This repository contains a ready-to-run BI project using the AviationStack Flights API (no airport enrichment). It includes:
 
